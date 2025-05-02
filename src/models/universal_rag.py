@@ -145,7 +145,8 @@ class UniversalRAG:
         query_text: str,
         modality: Optional[ModalityType] = None,
         granularity: Optional[GranularityLevel] = None,
-        top_k: int = 5
+        top_k: int = 5,
+        return_debug: bool = False
     ) -> str:
         """Process a query and generate a response"""
         # Create query object
@@ -187,6 +188,15 @@ class UniversalRAG:
         # Generate response using LLM
         response = self._generate_response(query_text, context_str, context_blocks)
         
+        debug = {
+            "decision": decision,
+            "modality": corpus.modality if corpus else None,
+            "granularity": corpus.granularity if corpus else None,
+            "retrieved": retrieved,               # list[(ContentItem, score)]
+        }
+
+        if return_debug:
+            return response, debug
         return response
     
     def _format_context(self, retrieved_content: List[Tuple[ContentItem, float]]) -> Tuple[str, List[dict]]:

@@ -4,6 +4,7 @@ import tempfile
 from typing import List
 
 import streamlit as st
+import graphviz                                  # NEW
 
 # Ensure project root on PYTHONPATH so we can import src.* modules when app is
 # executed from anywhere (``streamlit run`` does an internal cd).
@@ -81,10 +82,45 @@ query = st.text_input("Ask me anything…", placeholder="e.g. What are the key f
 
 if st.button("🔍 Run Query", type="primary") and query.strip():
     with st.spinner("Thinking…"):
-        answer = rag.process_query(query)
+        answer, dbg = rag.process_query(query, return_debug=True)
 
+    # ------------------- 1️⃣ show answer -------------------
     st.markdown("### 💬 Answer")
     st.write(answer)
 
+    # ------------------- 2️⃣ show workflow -----------------
+    with st.expander("🗺️  Workflow (click to expand)", expanded=False):
+        # a) flowchart
+        dot = graphviz.Digraph()
+        dot.attr(rankdir="LR", fontsize="10")
+        dot.node("Q", "User Query")
+        dot.node("R", f"Router\n({dbg['decision'].name})")
+        dot.node("V", f"Retriever\n({dbg['modality'].value.capitalize()})")
+        dot.node("L", "LLM")
+        dot.node("A", "Answer")
+        dot.edges(["QR", "RV", "VL", "LA"])
+        st.graphviz_chart(dot, use_container_width=True)
+
+        # b) metadata table
+        st.markdown("**Routing details**")
+        st.json(
+            {
+                "RoutingDecision": dbg["decision"].name,
+                "Modality": dbg["modality"].value if dbg["modality"] else None,
+                "Granularity": dbg["granularity"].name if dbg["granularity"] else None,
+                "Top-k": len(dbg["retrieved"]),
+            }
+        )
+
+        # c) retrieved context
+        st.markdown("**Retrieved Context**")
+        for idx, (item, score) in enumerate(dbg["retrieved"], 1):
+            st.caption(f"{idx}. score={score:.3f}")
+            if item.modality == ModalityType.TEXT:
+                st.write(item.content)
+            elif item.modality == ModalityType.IMAGE:
+                st.image(item.content, caption=item.metadata or f"image {idx}")
+            else:
+                st.write(f"[{item.modality.value}] {item.metadata}")
     st.markdown("---")
     st.caption("Powered by Universal RAG + GPT-4o-mini") 

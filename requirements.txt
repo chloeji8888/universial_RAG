@@ -16,3 +16,4 @@ openai>=1.0.0
 torchaudio>=2.0.0
 moviepy>=1.0.3
 streamlit>=1.23.0
+graphviz>=0.20.1
